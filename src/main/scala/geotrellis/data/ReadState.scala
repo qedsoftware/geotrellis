@@ -59,6 +59,9 @@ trait ReadState {
   def loadRaster(): Raster = {
     val re = rasterExtent
 
+    println("ReadState: loadRaster() begin "+Thread.currentThread().getId+" "+System.currentTimeMillis())
+    println("ReadState: rasterExtent "+re+" target: "+target)
+
     // keep track of cell size in our source raster
     val src_cellwidth =  re.cellwidth
     val src_cellheight = re.cellheight
@@ -143,6 +146,9 @@ trait ReadState {
 
     // build a raster object from our array and return
     translate(resampled)
-    createRaster(resampled)
+    val res = createRaster(resampled)
+
+    println("ReadState: loadRaster() end "+Thread.currentThread().getId+" "+System.currentTimeMillis())
+    res
   }
 }

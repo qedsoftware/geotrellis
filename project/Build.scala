@@ -2,16 +2,19 @@ import sbt._
 import sbt.Keys._
 
 // sbt-assembly
-import sbtassembly.Plugin._
-import AssemblyKeys._
+// import sbtassembly.Plugin._
+// import AssemblyKeys._
+
+import sbtassembly.AssemblyKeys
+import sbtassembly.AssemblyPlugin.autoImport._
 
 // ls.implicit.ly
 import ls.Plugin.LsKeys
 import ls.Plugin.lsSettings
 
 object Version {
-  val geotrellis = "0.9.2"
-  val scala = "2.10.3"
+  val geotrellis = "0.9.2-qed"
+  val scala = "2.10.5"
   val akka = "2.2.3"
   val geotools = "9.5"
 }
@@ -82,7 +85,6 @@ object GeotrellisBuild extends Build {
     )
 
   val defaultAssemblySettings = 
-    assemblySettings ++
     Seq(
       mergeStrategy in assembly <<= (mergeStrategy in assembly) {
         (old) => {
@@ -104,9 +106,12 @@ object GeotrellisBuild extends Build {
   lazy val macrosSettings =
     Seq(
       name := "geotrellis-macros",
-      addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10.2" % "2.0.0-SNAPSHOT"),
-      libraryDependencies ++= Seq(
-        "org.scala-lang" % "scala-reflect" % "2.10.2"),
+      resolvers += Resolver.sonatypeRepo("releases"),
+      addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+
+      // addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10" % "2.1.0"),
+      libraryDependencies ++= Seq("org.scala-lang" % "scala-reflect" % "2.10.5"),
+      libraryDependencies += "org.scalamacros" %% "quasiquotes" % "2.1.0",
       resolvers += Resolver.sonatypeRepo("snapshots"))
 
   // Project: root
@@ -212,7 +217,6 @@ object GeotrellisBuild extends Build {
         "spray repo" at "http://repo.spray.io"
       )
     ) ++ 
-    spray.revolver.RevolverPlugin.Revolver.settings ++
     defaultAssemblySettings
 
   // Project: spark
@@ -232,7 +236,7 @@ object GeotrellisBuild extends Build {
           "xerces" % "xercesImpl" % "2.9.1",
           "xalan" % "xalan" % "2.7.1",
           "org.scalatest" % "scalatest_2.10" % "2.0.M5b" % "test",
-          "org.apache.spark" %% "spark-core" % "0.9.0-incubating-SNAPSHOT",
+          "org.apache.spark" %% "spark-core" % "0.9.0-cdh5.2.0-SNAPSHOT",
           "org.apache.hadoop" % "hadoop-client" % "0.20.2-cdh3u4"
         ),
       resolvers ++= Seq(
@@ -262,6 +266,7 @@ object GeotrellisBuild extends Build {
           "org.geotools" % "gt-shapefile" % Version.geotools,
           "org.geotools" % "gt-geotiff" % Version.geotools,
           "org.geotools" % "gt-epsg-hsql" % Version.geotools,
+          "com.google.guava" % "guava" % "18.0",
 //          "org.geotools" % "gt-coveragetools" % Version.geotools,
 
 //          "org.postgis" % "postgis-jdbc" % "1.3.3",

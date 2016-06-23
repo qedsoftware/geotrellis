@@ -7,6 +7,8 @@ import geotrellis.util.Filesystem
 
 import scala.util._
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
+
 /**
  * Represents a location where data can be loaded from (e.g. the filesystem,
  * postgis, a web service, etc).
@@ -14,6 +16,8 @@ import scala.util._
 case class DataStore(name:String, params:Map[String, String],catalogPath:String) {
 
   private val layers = mutable.Map.empty[String, RasterLayer]
+
+  private val rwLock = new ReentrantReadWriteLock()
 
   initRasterLayers()
 
@@ -90,5 +94,60 @@ case class DataStore(name:String, params:Map[String, String],catalogPath:String)
     value == "true" || value == "yes" || value == "1"
   } else { false }
 
-  def getRasterLayer(name:String):Option[RasterLayer] = layers.get(name)
+  def getRasterLayer(name:String):Option[RasterLayer] = {
+
+    rwLock.readLock().lock()
+    val layer = layers.get(name) match {
+
+      case Some(foundLayer)=>
+        rwLock.readLock().unlock()
+        Some(foundLayer)
+
+      case None=>
+        rwLock.readLock().unlock()
+
+        rwLock.writeLock().lock()
+
+        // Needs to ensure that layer is not loaded already by another thread
+        // before we actually acquired write lock
+        layers.get(name) match {
+
+          case Some(foundLayer) =>
+            rwLock.writeLock().unlock()
+            Some(foundLayer)
+
+          case None=>
+            val path = params("path")
+            val fullFileName = s"$path/$name.json"
+
+            System.err.println(s"[NOTICE] Layer not found in cache. Try to load dynamically from $fullFileName")
+
+            try {
+
+              RasterLayer.fromFile(new File(fullFileName)) match {
+
+                case Success(readedLayer) =>
+
+                  System.err.println(s"[NOTICE] Layer $name loaded successfully from $fullFileName")
+
+                  layers(name) = readedLayer
+                  Some(readedLayer)
+
+                case Failure(e) =>
+                  System.err.println(s"[ERROR] Can't load layer $name: $e")
+                  None
+              }
+
+            } catch {
+              case e:Exception=>
+                e.printStackTrace()
+                None
+            } finally {
+              rwLock.writeLock().unlock()
+            }
+        }
+    }
+
+    layer
+  }
 }
